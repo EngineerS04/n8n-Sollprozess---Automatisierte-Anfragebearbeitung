@@ -10,4 +10,5 @@ n8n, Notion, Google Gemini
 5. Passende Lösung raussuchen
 6. Passende Lösung? Nein
 7. Verweis auf Support
+<img width="1470" height="658" alt="n8n Workflow Soll Prozess Automatisierte Anfragebearbeitung" src="https://github.com/user-attachments/assets/52dcf5fc-8ac0-4f2b-a6cf-2c44bd484c1a" />
 
