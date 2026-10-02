@@ -1,0 +1,737 @@
+{
+  "name": "Soll-Prozess – Automatisierte Anfragebearbeitung WF",
+  "nodes": [
+    {
+      "parameters": {
+        "formTitle": "Anfrage einreichen",
+        "formDescription": "Formular zur Erfassung neuer Support-Anfragen",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Name",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "E-Mail",
+              "fieldType": "email",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Betreff",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Beschreibung",
+              "fieldType": "textarea",
+              "requiredField": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "cc157577-b35e-4f45-928d-532ee91e1f83",
+      "name": "Trigger 1: Forms",
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.2,
+      "position": [
+        -1680,
+        128
+      ],
+      "webhookId": "d308ed10-114c-4279-bd3e-ecf9c09ecf7e"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "9ac77417-cd4a-4f45-89b3-6a8aa0966c7b",
+      "name": "Trigger 2: E-Mail (IMAP)",
+      "type": "n8n-nodes-base.emailReadImap",
+      "typeVersion": 2,
+      "position": [
+        -1680,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "getAll",
+        "databaseId": {
+          "__rl": true,
+          "value": "3e3996b6-b34f-8025-82a6-e6d99a42cbf4",
+          "mode": "list",
+          "cachedResultName": "Wissensdatenbank für KI-Assistent",
+          "cachedResultUrl": "https://app.notion.com/p/3e3996b6b34f802582a6e6d99a42cbf4"
+        },
+        "filterType": "manual",
+        "filters": {
+          "conditions": [
+            {
+              "key": "Name|title",
+              "condition": "contains"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "430065f3-2748-4588-aea3-e8933def643a",
+      "name": "2. Notion-Wissenssuche",
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2.2,
+      "position": [
+        -1200,
+        224
+      ],
+      "credentials": {
+        "notionApi": {
+          "id": "QrcaUKTnW9SlRQzD",
+          "name": "Notion account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.output }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              },
+              "id": "aa018ef8-aa9a-485c-9c5b-4d4a7b746fbc"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "54dae67d-c346-46e0-b992-da4237c179fd",
+      "name": "3. Passende Lösung?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -352,
+        224
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "name": "antwortentwurf",
+              "type": "string",
+              "value": "={{ $json.output }}",
+              "id": "4f668654-fd42-463e-9888-620f93587d70"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "6ae51ea2-6334-409b-a554-3580fd9735de",
+      "name": "4. Antwortentwurf aus Wissenseintrag",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        96,
+        -160
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "sendAndWait",
+        "select": "channel",
+        "channelId": {
+          "value": "SLACK_CHANNEL_ID",
+          "mode": "id"
+        },
+        "message": "=Neuer Antwortentwurf zur Freigabe für Anfrage von {{ $('1. Anfrage übernehmen, Suchtext bilden').item.json.name }}:\n\n{{ $json.antwortentwurf }}",
+        "approvalOptions": {
+          "values": {
+            "approvalType": "double",
+            "approveLabel": "Freigeben",
+            "disapproveLabel": "Korrektur nötig"
+          }
+        },
+        "options": {}
+      },
+      "id": "a1c3f648-1ca4-4045-81e8-1425c2fcae48",
+      "name": "5. Menschliche Freigabe",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        2032,
+        656
+      ],
+      "webhookId": "04c59b8e-17be-49b4-ace1-933f77a2b27c"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.data.approved }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              },
+              "id": "2b5d45bd-8289-4306-867f-bfe773921831"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "ff83f961-f31d-4054-b502-1fbde5afea74",
+      "name": "Freigegeben?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2224,
+        592
+      ]
+    },
+    {
+      "parameters": {
+        "subject": "=Re: {{ $('1. Anfrage übernehmen, Suchtext bilden').item.json.betreff }}",
+        "options": {}
+      },
+      "id": "b9fef708-d368-41c3-8539-9311f8f871fa",
+      "name": "6. Versand an Anfragende",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        2496,
+        592
+      ],
+      "webhookId": "57dcd3b4-c85e-442b-990c-37b3640433b2"
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "value": "SLACK_CHANNEL_FIRSTLEVEL_ID",
+          "mode": "id"
+        },
+        "text": "=Neue Anfrage ohne passende Wissenslösung – bitte prüfen:\n{{ $('1. Anfrage übernehmen, Suchtext bilden').item.json.betreff }}\n{{ $('1. Anfrage übernehmen, Suchtext bilden').item.json.beschreibung }}",
+        "otherOptions": {}
+      },
+      "id": "1eae8e25-47f4-4834-9886-3798cd9d5556",
+      "name": "7. Weiterleitung an First-Level-Support",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        1920,
+        816
+      ],
+      "webhookId": "97e07333-bf1a-4773-88d9-f3e8c889b811"
+    },
+    {
+      "parameters": {
+        "operation": "sendAndWait",
+        "select": "channel",
+        "channelId": {
+          "value": "SLACK_CHANNEL_FIRSTLEVEL_ID",
+          "mode": "id"
+        },
+        "message": "=Konnte First-Level die Anfrage lösen?",
+        "approvalOptions": {
+          "values": {
+            "approvalType": "double",
+            "approveLabel": "Ja, gelöst",
+            "disapproveLabel": "Nein, eskalieren"
+          }
+        },
+        "options": {}
+      },
+      "id": "f8fc6a07-a4c9-4a43-a8a0-1af51d7b0566",
+      "name": "8. Lösbar durch First-Level?",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        1776,
+        976
+      ],
+      "webhookId": "4f8dde92-76ce-4418-bb8c-a437531d37e8"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.data.approved }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              },
+              "id": "d535a77e-93bb-41e0-9e7b-aba7b0e11301"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "ead5d0ed-c5b2-482a-b734-b6cac6f0b967",
+      "name": "Gelöst?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1984,
+        1056
+      ]
+    },
+    {
+      "parameters": {
+        "subject": "=Re: {{ $('1. Anfrage übernehmen, Suchtext bilden').item.json.betreff }}",
+        "options": {}
+      },
+      "id": "367655a8-51a3-4b05-8eb6-9a118a74036a",
+      "name": "9. Lösung dokumentieren und versenden",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        2256,
+        800
+      ],
+      "webhookId": "8d1291fe-011f-4db5-a58e-4468e1454a11"
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "value": "SLACK_CHANNEL_SECONDLEVEL_ID",
+          "mode": "id"
+        },
+        "text": "=Eskalation: Anfrage konnte von First-Level nicht gelöst werden.\n{{ $('1. Anfrage übernehmen, Suchtext bilden').item.json.betreff }}\n{{ $('1. Anfrage übernehmen, Suchtext bilden').item.json.beschreibung }}",
+        "otherOptions": {}
+      },
+      "id": "e2ce2754-6193-483a-93d4-4504047f6c55",
+      "name": "10. Eskalation an Second-Level-Support",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        2256,
+        1056
+      ],
+      "webhookId": "17b17cca-5bd7-4991-b832-b39473266839"
+    },
+    {
+      "parameters": {
+        "operation": "sendAndWait",
+        "select": "channel",
+        "channelId": {
+          "value": "SLACK_CHANNEL_SECONDLEVEL_ID",
+          "mode": "id"
+        },
+        "message": "=Bitte Lösung für eskalierte Anfrage eintragen.",
+        "approvalOptions": {
+          "values": {}
+        },
+        "options": {}
+      },
+      "id": "88de117d-49d6-4199-9369-4582b856bea2",
+      "name": "11. Lösung durch Second-Level",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        2512,
+        1040
+      ],
+      "webhookId": "0b760fa9-dbf9-4074-a91f-e6cf46e11a38"
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "databaseId": {
+          "value": "NOTION_DATABASE_ID",
+          "mode": "id"
+        },
+        "title": "={{ $('1. Anfrage übernehmen, Suchtext bilden').item.json.betreff }}",
+        "propertiesUi": {
+          "propertyValues": [
+            {
+              "key": "Text|rich_text",
+              "textContent": "={{ $('1. Anfrage übernehmen, Suchtext bilden').item.json.beschreibung }}"
+            },
+            {
+              "key": "Loesung|rich_text",
+              "textContent": "={{ $json.antwortentwurf || $json.data?.text || 'Siehe Second-Level-Notizen' }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "ec03b987-b55d-46ea-8233-944137a693fe",
+      "name": "12. Dokumentation / Wissensrückfluss",
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2.2,
+      "position": [
+        2736,
+        832
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// n8n Code Node - gibt Name und Antwortentwurf für jedes Item zurück\n\nconst items = $input.all();\n\nreturn items.map(item => {\n  const data = item.json;\n\n  return {\n    json: {\n      Name: data.property_name ?? data.name ?? null,\n      Antwortentwurf: data.property_antwortentwurf ?? null\n    }\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -976,
+        224
+      ],
+      "id": "2be06bb8-fb4d-483e-9e9d-438a1c5b0edf",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Du bist ein Use-Case-Matcher für IT-Support.\n\nUSER INPUT:\n{{ $('Trigger 1: Forms').item.json.Beschreibung }}\n\nCANDIDATE:\n{{ $json.Name }}\n\nPrüfe semantisch, ob der Candidate zum User Input passt.\n\nRegeln:\n- Verwende ausschließlich Daten aus dem Candidate.\n- Berücksichtige Synonyme, natürliche Sprache, Tippfehler und unterschiedliche Formulierungen.\n- Gib den Candidate nur zurück, wenn der Use Case inhaltlich wirklich passt.\n- Erzwinge niemals einen Match.\n- Wenn kein sinnvoller Match vorhanden ist, lasse ALLE Output-Felder leer.\n- Verändere niemals Werte aus dem Candidate.",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        -752,
+        224
+      ],
+      "id": "ed40f076-a290-42d7-ba97-bbeffa57755f",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.1,
+      "position": [
+        -752,
+        432
+      ],
+      "id": "7f73cf1a-0f8c-47dd-b2a1-a8426689cc07",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "Mn4LvDVsSbARjxiO",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "getAll",
+        "dataSourceId": {
+          "__rl": true,
+          "value": "3e3996b6-b34f-800e-8aeb-000b8cc4e65c",
+          "mode": "list",
+          "cachedResultName": "Wissensdatenbank für KI-Assistent",
+          "cachedResultUrl": "https://app.notion.com/p/3e3996b6b34f802582a6e6d99a42cbf4"
+        },
+        "filterType": "manual",
+        "filters": {
+          "conditions": [
+            {
+              "key": "Name|title",
+              "condition": "equals",
+              "richTextValue": "={{ $json.antwortentwurf }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 3,
+      "position": [
+        320,
+        -160
+      ],
+      "id": "76b73a77-1cea-408b-83e1-f3e4b0e98f4e",
+      "name": "Die richtige Antwort raussuchen",
+      "credentials": {
+        "notionApi": {
+          "id": "QrcaUKTnW9SlRQzD",
+          "name": "Notion account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "completion",
+        "completionTitle": "Nicht gelöste IT-Probleme",
+        "completionMessage": "Wenn ihr Anliegen hier nicht gelöst sein sollte, dann wenden Sie sich bitte beim IT-Service Point oder bei Personalfragen an die HR-Abteilung",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.form",
+      "typeVersion": 2.5,
+      "position": [
+        400,
+        688
+      ],
+      "id": "6fb80650-1c96-4941-8e9e-0fdcb4add0a4",
+      "name": "Keine passende Lösung",
+      "webhookId": "2120a250-2da8-469d-8395-29ee84726641"
+    },
+    {
+      "parameters": {
+        "operation": "completion",
+        "completionTitle": "Lösungsvorschlag",
+        "completionMessage": "={{ $json.property_antwortentwurf }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.form",
+      "typeVersion": 2.5,
+      "position": [
+        544,
+        -160
+      ],
+      "id": "69dd9787-567b-4cb3-89ef-5794c08120c6",
+      "name": "Passende Lösung",
+      "webhookId": "70ab3bb3-611a-4ddd-aca0-f14bac682ecd"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Trigger 1: Forms": {
+      "main": [
+        [
+          {
+            "node": "2. Notion-Wissenssuche",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Trigger 2: E-Mail (IMAP)": {
+      "main": [
+        [
+          {
+            "node": "2. Notion-Wissenssuche",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "2. Notion-Wissenssuche": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "3. Passende Lösung?": {
+      "main": [
+        [
+          {
+            "node": "4. Antwortentwurf aus Wissenseintrag",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Keine passende Lösung",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "4. Antwortentwurf aus Wissenseintrag": {
+      "main": [
+        [
+          {
+            "node": "Die richtige Antwort raussuchen",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "5. Menschliche Freigabe": {
+      "main": [
+        []
+      ]
+    },
+    "Freigegeben?": {
+      "main": [
+        [
+          {
+            "node": "6. Versand an Anfragende",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "6. Versand an Anfragende": {
+      "main": [
+        [
+          {
+            "node": "12. Dokumentation / Wissensrückfluss",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "7. Weiterleitung an First-Level-Support": {
+      "main": [
+        []
+      ]
+    },
+    "8. Lösbar durch First-Level?": {
+      "main": [
+        [
+          {
+            "node": "Gelöst?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gelöst?": {
+      "main": [
+        [
+          {
+            "node": "9. Lösung dokumentieren und versenden",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "10. Eskalation an Second-Level-Support",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "9. Lösung dokumentieren und versenden": {
+      "main": [
+        [
+          {
+            "node": "12. Dokumentation / Wissensrückfluss",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "10. Eskalation an Second-Level-Support": {
+      "main": [
+        [
+          {
+            "node": "11. Lösung durch Second-Level",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "11. Lösung durch Second-Level": {
+      "main": [
+        [
+          {
+            "node": "12. Dokumentation / Wissensrückfluss",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "3. Passende Lösung?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Die richtige Antwort raussuchen": {
+      "main": [
+        [
+          {
+            "node": "Passende Lösung",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Passende Lösung": {
+      "main": [
+        []
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "380128ea-af0f-47be-b921-6aa8cf25a5ee",
+  "meta": {
+    "instanceId": "13048edb7b89918967eb25facb1301be2b6f7080881d9b4a6430d94104610d11"
+  },
+  "nodeGroups": [],
+  "id": "QuFtWRN7rF5GKbMp",
+  "tags": []
+}
